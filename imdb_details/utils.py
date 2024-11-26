@@ -185,6 +185,23 @@ def get_movies_with_distinct_actors_count():
     movies_with_actor_count = Movie.objects.annotate(distinct_actors_count=Count('cast__actor', distinct=True))
     return movies_with_actor_count
 
+def get_male_and_female_actors_count_for_each_movie():
+    movies = Movie.objects.all()
+    for movie in movies:
+        male_count = sum(
+            1 for cast_member in movie.cast
+            if "male" in cast_member.actor.get("gender", "").lower()
+        )
+        female_count = sum(
+            1 for cast_member in movie.cast
+            if "female" in cast_member.actor.get("gender", "").lower()
+        )
+
+        movie.male_actors_count = male_count
+        movie.female_actors_count = female_count
+
+    return movies
+
 def get_roles_count_for_each_movie():
     roles_count = Cast.objects.values('movie').annotate(count=Count('role', distinct=True))
     return roles_count
@@ -236,6 +253,32 @@ def get_movies_by_given_movie_names(movie_names):
 def get_all_actor_objects_acted_in_given_movies(movie_objs):
     actor_objects = Cast.objects.filter(movie__in=movie_objs).select_related('actor').distinct()
     return actor_objects
+
+
+def get_female_cast_details_from_movies_having_more_than_five_female_cast(movies):
+    result = []
+
+    for movie in movies:
+        female_cast = [
+            cast_member for cast_member in movie["cast"]
+            if "female" in cast_member.get("actor", {}).get("gender", "").lower()
+        ]
+
+        if len(female_cast) >= 5:
+            filtered_movie_details = {
+                "movie_id": movie["movie_id"],
+                "name": movie["name"],
+                "cast": female_cast,
+                "box_office_collection_in_crores": movie["box_office_collection_in_crores"],
+                "release_date": movie["release_date"],
+                "director_name": movie["director_name"],
+                "average_rating": movie["average_rating"],
+                "total_number_of_ratings": movie["total_number_of_ratings"],
+            }
+            result.append(filtered_movie_details)
+
+    return result
+
 
 def get_actor_movies_released_in_year_greater_than_or_equal_to_2000():
     result=list(Cast.objects.filter(movie__released_date__year__gte=2000).select_related('movie').distinct())
